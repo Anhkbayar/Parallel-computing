@@ -1,8 +1,11 @@
+#include <thread>
+#include <vector>
+#include <iostream>
 #include "tasksys.h"
 
 IRunnable::~IRunnable() {}
 
-ITaskSystem::ITaskSystem(int num_threads) {}
+ITaskSystem::ITaskSystem(int nt) : num_threads(nt) {}
 ITaskSystem::~ITaskSystem() {}
 
 /*
@@ -74,10 +77,30 @@ void TaskSystemParallelSpawn::run(IRunnable *runnable, int num_total_tasks)
     // method in Part A.  The implementation provided below runs all
     // tasks sequentially on the calling thread.
     //
+    // unsigned int n = std::thread::hardware_concurrency();
+    // std::cout << n << " concurrent threads are supported.\n";
 
-    for (int i = 0; i < num_total_tasks; i++)
+    int thread_count = std::min(num_threads, num_total_tasks);
+
+    std::vector<std::thread> threads(thread_count);
+
+    int chunk = (num_total_tasks + thread_count - 1) / thread_count;
+
+    for (int i = 0; i < thread_count; i++)
     {
-        runnable->runTask(i, num_total_tasks);
+        int start = i * chunk;
+        int end = std::min(start + chunk, num_total_tasks);
+
+        threads[i] = std::thread([=]()
+                                 {
+            for(int i = 0; i <end;i++){
+                runnable->runTask(i, num_total_tasks);
+            } });
+    }
+
+    for (int t = 0; t < thread_count; t++)
+    {
+        threads[t].join();
     }
 }
 

@@ -46,8 +46,8 @@ int main()
 
     // Ажлын тоо их, нэг ажлын хүндрэл бага байх тусам
     // Thread Pool-ийн давуу тал тодорхой харагдана.
-    int num_tasks = 5000;
-    int workload_intensity = 200;
+    int num_tasks = 50000000;
+    int workload_intensity = 100;
 
     std::cout << "========================================" << std::endl;
     std::cout << "Task System Benchmark" << std::endl;
@@ -62,6 +62,9 @@ int main()
     delete serialSystem;
 
     // 2. Parallel Spawn System (Step 1)
+    ITaskSystem *parallelSpawnSystem = new TaskSystemParallelSpawn(num_threads);
+    runBenchmark(parallelSpawnSystem, &task, num_tasks, "Parallel Spawn System");
+    delete parallelSpawnSystem;
     // 3. Parallel Spinning System (Step 2)
     // 4. Parallel Sleeping System (Step 3)
 
