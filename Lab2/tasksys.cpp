@@ -148,26 +148,13 @@ TaskSystemParallelThreadPoolSpinning::TaskSystemParallelThreadPoolSpinning(int n
     {
         workers.emplace_back([this]()
                              {
-            while(true){
-                std::unique_lock<std::mutex> lock(mtx);
-
-                cv.wait(lock, [this](){ return has_work || shutdown ;});
-                if(shutdown)
-                    return;
-
-                while(next_task < total_tasks){
-                    int task_id = next_task ++;
-                    lock.unlock();
-
-                    current_runnable-> runTask(task_id, total_tasks);
-
-                    lock.lock();
-                    tasks_done ++;
-                }
-
-                if(tasks_done == total_tasks){
-                    has_work = false;
-                    cv.notify_all();
+            while(!shutdown){
+                if(has_work){
+                    int task_id = next_task.fetch_add(1);
+                    if(task_id < total_tasks){
+                        current_runnable -> runTask(task_id, total_tasks);
+                        tasks_done.fetch_add(1);
+                    }
                 }
             } });
     }
@@ -192,11 +179,6 @@ void TaskSystemParallelThreadPoolSpinning::run(IRunnable *runnable, int num_tota
     // tasks sequentially on the calling thread.
     //
 
-    for (int i = 0; i < num_total_tasks; i++)
-    {
-        runnable->runTask(i, num_total_tasks);
-    }
-
     std::unique_lock<std::mutex> lock(mtx);
     current_runnable = runnable;
     total_tasks = num_total_tasks;
@@ -204,9 +186,11 @@ void TaskSystemParallelThreadPoolSpinning::run(IRunnable *runnable, int num_tota
     tasks_done = 0;
     has_work = true;
 
-    cv.notify_all();
-    cv.wait(lock, [this]()
-            { return tasks_done == total_tasks; });
+    while(tasks_done.load() < num_total_tasks){
+
+    }
+
+    has_work = false;
 }
 
 TaskID TaskSystemParallelThreadPoolSpinning::runAsyncWithDeps(IRunnable *runnable, int num_total_tasks,
