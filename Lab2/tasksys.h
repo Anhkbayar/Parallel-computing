@@ -1,6 +1,11 @@
 #ifndef _TASKSYS_H
 #define _TASKSYS_H
 
+#include <thread>
+#include <atomic>
+#include <vector>
+#include <mutex>
+#include <condition_variable>
 #include "itasksys.h"
 
 /*
@@ -54,6 +59,20 @@ public:
     TaskID runAsyncWithDeps(IRunnable *runnable, int num_total_tasks,
                             const std::vector<TaskID> &deps);
     void sync();
+
+    std::vector<std::thread> workers;
+
+    std::mutex mtx;
+    std::condition_variable cv;
+
+    std::atomic<int> next_task;
+    std::atomic<int> tasks_done;
+
+    IRunnable *current_runnable;
+    int total_tasks;
+
+    std::atomic<bool> has_work;
+    std::atomic<bool> shutdown;
 };
 
 /*
@@ -72,6 +91,20 @@ public:
     TaskID runAsyncWithDeps(IRunnable *runnable, int num_total_tasks,
                             const std::vector<TaskID> &deps);
     void sync();
+
+    std::vector<std::thread> workers;
+    
+    std::mutex mtx;
+    std::condition_variable cv;
+
+    int next_task;
+    int tasks_done;
+
+    IRunnable* current_runnable;
+    int total_tasks;
+
+    bool has_work;
+    bool shutdown;
 };
 
 #endif
