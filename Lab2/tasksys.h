@@ -6,6 +6,7 @@
 #include <vector>
 #include <mutex>
 #include <condition_variable>
+#include <queue>
 #include "itasksys.h"
 
 /*
@@ -97,14 +98,25 @@ public:
     std::mutex mtx;
     std::condition_variable cv;
 
-    int next_task;
-    int tasks_done;
-
-    IRunnable* current_runnable;
-    int total_tasks;
-
-    bool has_work;
     bool shutdown;
+
+    struct Task{
+        TaskID id;
+        IRunnable* runnable;
+        int total_tasks;
+
+        int next_task = 0;
+        int tasks_done = 0;
+
+        int deps_remaining = 0;
+        std::vector<TaskID> dependents;
+    };
+
+    std::vector<Task> tasks;
+    std::queue<TaskID> ready_queue;
+
+    TaskID next_task_id = 0;
+    int tasks_left = 0;
 };
 
 #endif
