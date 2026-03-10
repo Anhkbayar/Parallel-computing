@@ -1,13 +1,13 @@
 #ifndef _TASKSYS_H
 #define _TASKSYS_H
 
+#include "itasksys.h"
 #include <thread>
 #include <atomic>
 #include <vector>
 #include <mutex>
 #include <condition_variable>
 #include <queue>
-#include "itasksys.h"
 
 /*
  * TaskSystemSerial: This class is the student's implementation of a
@@ -92,30 +92,22 @@ public:
                             const std::vector<TaskID> &deps);
     void sync();
 
+private:  
+    int num_threads;
     std::vector<std::thread> workers;
-    
-    std::mutex mtx;
-    std::condition_variable cv;
+
+    IRunnable *currentRunnable;
+    int totalTasks;
+
+    int next_task;
+    int finished_tasks;
 
     bool shutdown;
+    bool has_work;
 
-    struct Task{
-        TaskID id;
-        IRunnable* runnable;
-        int total_tasks;
-
-        int next_task = 0;
-        int tasks_done = 0;
-
-        int deps_remaining = 0;
-        std::vector<TaskID> dependents;
-    };
-
-    std::vector<Task> tasks;
-    std::queue<TaskID> ready_queue;
-
-    TaskID next_task_id = 0;
-    int tasks_left = 0;
+    std::mutex mtx;
+    std::condition_variable cv_work;
+    std::condition_variable cv_done;
 };
 
 #endif

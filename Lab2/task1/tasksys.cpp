@@ -149,12 +149,11 @@ TaskSystemParallelThreadPoolSpinning::TaskSystemParallelThreadPoolSpinning(int n
         workers.emplace_back([this]()
                              {
             while(!shutdown){
-                if(has_work){
-                    int task_id = next_task.fetch_add(1);
-                    if(task_id < total_tasks){
-                        current_runnable -> runTask(task_id, total_tasks);
-                        tasks_done.fetch_add(1);
-                    }
+                int task = next_task.fetch_add(1);
+
+                if(task < total_tasks){
+                    current_runnable->runTask(task, total_tasks);
+                    tasks_done.fetch_add(1);
                 }
             } });
     }
@@ -219,7 +218,13 @@ const char *TaskSystemParallelThreadPoolSleeping::name()
 }
 
 TaskSystemParallelThreadPoolSleeping::TaskSystemParallelThreadPoolSleeping(int num_threads) : ITaskSystem(num_threads),
-                                                                                              shutdown(false)
+                                                                                              num_threads(num_threads),
+                                                                                              currentRunnable(nullptr),
+                                                                                              totalTasks(0),
+                                                                                              next_task(0),
+                                                                                              finished_tasks(0),
+                                                                                              shutdown(false),
+                                                                                              has_work(false)
 {
     //
     // TODO: CSM306 student implementations may decide to perform setup
@@ -231,60 +236,32 @@ TaskSystemParallelThreadPoolSleeping::TaskSystemParallelThreadPoolSleeping(int n
     {
         workers.emplace_back([this]()
                              {
-
         while (true)
         {
             std::unique_lock<std::mutex> lock(mtx);
 
-            cv.wait(lock, [this]() {
-                return shutdown || !ready_queue.empty();
-            });
+            cv_work.wait(lock, [this]() { return shutdown || has_work; });
 
             if (shutdown)
                 return;
 
-            TaskID id = ready_queue.front();
-            Task &task = tasks[id];
+            while(true){
+                int task = next_task;
 
-            int chunk_size = 512;
-            int start_task = task.next_task;
-            int end_task = std::min(start_task + chunk_size, task.total_tasks);
+                if(task >= totalTasks)
+                    break;
 
-            task.next_task = end_task;
+                next_task++;
 
-            if (task.next_task >= task.total_tasks)
-                ready_queue.pop();
+                lock.unlock();
+                currentRunnable->runTask(task, totalTasks);
+                lock.lock();
 
-            IRunnable* curr_runnable = task.runnable;
-            int total = task.total_tasks;
-            int num_tasks_in_chunk = end_task - start_task;
-
-            lock.unlock();
-
-            for (int i = start_task; i < end_task; i++) {
-            curr_runnable->runTask(i, total);
-            }
-
-            lock.lock();
-            tasks[id].tasks_done += num_tasks_in_chunk;
-
-            if (tasks[id].tasks_done == tasks[id].total_tasks)
-            {
-                for (TaskID dep : task.dependents)
-                {
-                    tasks[dep].deps_remaining--;
-
-                    if (tasks[dep].deps_remaining == 0)
-                    {
-                        ready_queue.push(dep);
-                        cv.notify_all();
-                    }
+                finished_tasks++;
+                if(finished_tasks == totalTasks){
+                    has_work = false;
+                    cv_done.notify_one();
                 }
-
-                tasks_left--;
-
-                if (tasks_left == 0)
-                    cv.notify_all();
             }
         } });
     }
@@ -303,7 +280,7 @@ TaskSystemParallelThreadPoolSleeping::~TaskSystemParallelThreadPoolSleeping()
         shutdown = true;
     }
 
-    cv.notify_all();
+    cv_work.notify_all();
 
     for (auto &t : workers)
     {
@@ -319,8 +296,20 @@ void TaskSystemParallelThreadPoolSleeping::run(IRunnable *runnable, int num_tota
     // method in Parts A and B.  The implementation provided below runs all
     // tasks sequentially on the calling thread.
     //
-    runAsyncWithDeps(runnable, num_total_tasks, {});
-    sync();
+    {
+        std::lock_guard<std::mutex> lock(mtx);
+        currentRunnable = runnable;
+        totalTasks = num_total_tasks;
+        next_task = 0;
+        finished_tasks = 0;
+        has_work = true;
+    }
+
+    cv_work.notify_all();
+
+    std::unique_lock<std::mutex> lock(mtx);
+    cv_done.wait(lock, [this]()
+                 { return finished_tasks == totalTasks; });
 }
 
 TaskID TaskSystemParallelThreadPoolSleeping::runAsyncWithDeps(IRunnable *runnable, int num_total_tasks,
@@ -330,30 +319,7 @@ TaskID TaskSystemParallelThreadPoolSleeping::runAsyncWithDeps(IRunnable *runnabl
     //
     // TODO: CSM306 students will implement this method in Part B.
     //
-    std::unique_lock<std::mutex> lock(mtx);
-
-    TaskID id = next_task_id++;
-
-    Task task;
-    task.id = id;
-    task.runnable = runnable;
-    task.total_tasks = num_total_tasks;
-    task.deps_remaining = deps.size();
-
-    tasks.push_back(task);
-    for (TaskID d : deps)
-    {
-        tasks[d].dependents.push_back(id);
-    }
-
-    if (deps.empty())
-    {
-        ready_queue.push(id);
-        cv.notify_all();
-    }
-
-    tasks_left++;
-    return id;
+    return 0;
 }
 
 void TaskSystemParallelThreadPoolSleeping::sync()
@@ -362,8 +328,5 @@ void TaskSystemParallelThreadPoolSleeping::sync()
     //
     // TODO: CSM306 students will modify the implementation of this method in Part B.
     //
-    std::unique_lock<std::mutex> lock(mtx);
-
-    cv.wait(lock, [this]()
-            { return tasks_left == 0; });
+    return;
 }
