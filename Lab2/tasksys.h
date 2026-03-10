@@ -64,7 +64,6 @@ public:
     std::vector<std::thread> workers;
 
     std::mutex mtx;
-    std::condition_variable cv;
 
     std::atomic<int> next_task;
     std::atomic<int> tasks_done;

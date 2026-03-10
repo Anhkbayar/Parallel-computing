@@ -95,7 +95,7 @@ void TaskSystemParallelSpawn::run(IRunnable *runnable, int num_total_tasks)
 
         threads[i] = std::thread([=]()
                                  {
-            for(int i = 0; i <end;i++){
+            for(int i = start; i <end;i++){
                 runnable->runTask(i, num_total_tasks);
             } });
     }
@@ -188,6 +188,7 @@ void TaskSystemParallelThreadPoolSpinning::run(IRunnable *runnable, int num_tota
 
     while (tasks_done.load() < num_total_tasks)
     {
+        std::this_thread::yield();
     }
 
     has_work = false;

@@ -46,7 +46,7 @@ int main()
 
     // Ажлын тоо их, нэг ажлын хүндрэл бага байх тусам
     // Thread Pool-ийн давуу тал тодорхой харагдана.
-    int num_tasks = 5000000;
+    int num_tasks = 100000;
     int workload_intensity = 100;
 
     std::cout << "========================================" << std::endl;
