@@ -11,9 +11,13 @@ __global__ void saxpy_kernel(int N, float alpha, float *x, float *y, float *resu
 {
     // Энд thread-ийн глобал индексийг тооцоолж гаргах хэрэгтэй
     // int index = ...
-
+    int i = blockDim.x * blockIdx.x + threadIdx.x;
     // Индекс N-ээс бага үед тооцооллыг хийнэ
     // if (index < N) { ... }
+    if (i < N)
+    {
+        result[i] = alpha * x[i] + y[i];
+    }
 }
 
 void run_saxpy(int N, float alpha, float *host_x, float *host_y, float *host_result)
@@ -28,6 +32,7 @@ void run_saxpy(int N, float alpha, float *host_x, float *host_y, float *host_res
      * device_x, device_y, device_result-д зориулж 'size' хэмжээтэй зай авна.
      */
     // cudaMalloc(...);
+    
 
     /**
      * ДААЛГАВАР 3: Өгөгдлийг CPU-ээс GPU рүү хуулах (cudaMemcpy)

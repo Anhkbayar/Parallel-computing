@@ -273,8 +273,6 @@ void TaskSystemParallelThreadPoolSleeping::workerLoop()
                     task = candidate->nextTask;
                     candidate->nextTask++;
 
-                    // If there are still tasks left after taking one,
-                    // keep the job in queue for other workers
                     if (candidate->nextTask >= candidate->totalTasks)
                     {
                         readyQueue.pop();
@@ -292,7 +290,6 @@ void TaskSystemParallelThreadPoolSleeping::workerLoop()
                 continue;
         }
 
-        // Run the task without holding the mutex
         job->runnable->runTask(task, job->totalTasks);
 
         {
@@ -300,7 +297,6 @@ void TaskSystemParallelThreadPoolSleeping::workerLoop()
 
             job->finishedTasks++;
 
-            // If there are still unassigned tasks, requeue it
             if (job->nextTask < job->totalTasks)
             {
                 readyQueue.push(job);
