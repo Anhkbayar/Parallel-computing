@@ -32,13 +32,17 @@ void run_saxpy(int N, float alpha, float *host_x, float *host_y, float *host_res
      * device_x, device_y, device_result-д зориулж 'size' хэмжээтэй зай авна.
      */
     // cudaMalloc(...);
-    
+    cudaMalloc((void **)&device_x, size);
+    cudaMalloc((void **)&device_y, size);
+    cudaMalloc((void **)&device_result, size);
 
     /**
      * ДААЛГАВАР 3: Өгөгдлийг CPU-ээс GPU рүү хуулах (cudaMemcpy)
      * host_x -> device_x, host_y -> device_y
      */
     // cudaMemcpy(...);
+    cudaMemcpy(device_x, host_x, size, cudaMemcpyHostToDevice);
+    cudaMemcpy(device_y, host_y, size, cudaMemcpyHostToDevice);
 
     // Блок болон Thread-ийн тоог тохируулах
     const int threadsPerBlock = 256;
@@ -56,6 +60,14 @@ void run_saxpy(int N, float alpha, float *host_x, float *host_y, float *host_res
      * <<<blocks, threadsPerBlock>>> тохиргоотойгоор saxpy_kernel-ийг ажиллуулна.
      */
     // saxpy_kernel<<<...>>>(...);
+    auto kernelStart = std::chrono::high_resolution_clock::now();
+
+    saxpy_kernel<<<blocks, threadsPerBlock>>>(N, alpha, device_x, device_y, device_result);
+
+    cudaDeviceSynchronize();
+
+    auto kernelEnd = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> kernelDuration = kernelEnd - kernelStart;
 
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
@@ -68,6 +80,7 @@ void run_saxpy(int N, float alpha, float *host_x, float *host_y, float *host_res
      * device_result -> host_result
      */
     // cudaMemcpy(...);
+    cudaMemcpy(host_result, device_result, size, cudaMemcpyDeviceToHost);
 
     auto totalEnd = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> totalMs = totalEnd - totalStart;
