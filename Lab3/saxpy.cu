@@ -3,6 +3,15 @@
 #include <chrono>
 
 /**
+ * 1.kernel
+ * 2.cpu memory
+ * 3.gpu memory
+ * 4.h2d
+ * 5.kernel run
+ * 6.d2h
+ */
+
+/**
  * ДААЛГАВАР 1: CUDA Kernel бичих
  * Энэ функц нь GPU-ийн thread бүр дээр зэрэг ажиллана.
  * Томьёо: result[i] = alpha * x[i] + y[i]
@@ -41,8 +50,19 @@ void run_saxpy(int N, float alpha, float *host_x, float *host_y, float *host_res
      * host_x -> device_x, host_y -> device_y
      */
     // cudaMemcpy(...);
+    cudaEvent_t h2d_start, h2d_end;
+    cudaEventCreate(&h2d_start);
+    cudaEventCreate(&h2d_end);
+
+    cudaEventRecord(h2d_start);
+
     cudaMemcpy(device_x, host_x, size, cudaMemcpyHostToDevice);
     cudaMemcpy(device_y, host_y, size, cudaMemcpyHostToDevice);
+
+    cudaEventRecord(h2d_end);
+
+    float h2d_ms = 0;
+    cudaEventElapsedTime(&h2d_ms, h2d_start, h2d_end);
 
     // Блок болон Thread-ийн тоог тохируулах
     const int threadsPerBlock = 256;
@@ -60,14 +80,14 @@ void run_saxpy(int N, float alpha, float *host_x, float *host_y, float *host_res
      * <<<blocks, threadsPerBlock>>> тохиргоотойгоор saxpy_kernel-ийг ажиллуулна.
      */
     // saxpy_kernel<<<...>>>(...);
-    auto kernelStart = std::chrono::high_resolution_clock::now();
+    // auto kernelStart = std::chrono::high_resolution_clock::now();
 
     saxpy_kernel<<<blocks, threadsPerBlock>>>(N, alpha, device_x, device_y, device_result);
 
     cudaDeviceSynchronize();
 
-    auto kernelEnd = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double, std::milli> kernelDuration = kernelEnd - kernelStart;
+    // auto kernelEnd = std::chrono::high_resolution_clock::now();
+    // std::chrono::duration<double, std::milli> kernelDuration = kernelEnd - kernelStart;
 
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
@@ -80,15 +100,31 @@ void run_saxpy(int N, float alpha, float *host_x, float *host_y, float *host_res
      * device_result -> host_result
      */
     // cudaMemcpy(...);
+    cudaEvent_t d2h_start, d2h_end;
+    cudaEventCreate(&d2h_start);
+    cudaEventCreate(&d2h_end);
+
+    cudaEventRecord(d2h_start);
+
     cudaMemcpy(host_result, device_result, size, cudaMemcpyDeviceToHost);
+
+    cudaEventRecord(d2h_end);
+    float d2h_ms = 0;
+    cudaEventElapsedTime(&d2h_ms, d2h_start, d2h_end);
 
     auto totalEnd = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> totalMs = totalEnd - totalStart;
+
+    float totalTransferTime = h2d_ms + d2h_ms;
+
+    float total_bytes = N * 3 * sizeof(float);
+    float bandwidth = total_bytes / (totalTransferTime / 1000.0f) / 1e9;
 
     // Үр дүнг хэвлэх
     printf("--- CUDA SAXPY Result ---\n");
     printf("Total time (including memory transfer): %.3f ms\n", totalMs.count());
     printf("Kernel execution time:                 %.3f ms\n", kernelMs);
+    printf("Bandwidth: %.3f GB/s\n", bandwidth);
 
     // Чөлөөлөх
     cudaFree(device_x);
@@ -119,7 +155,7 @@ int main()
 
     // Шалгалт (Verification)
     bool success = true;
-    for (int i = 0; i < 100; i++)
+    for (int i = 0; i < 10000; i++)
     { // Эхний 100 элементийг шалгах
         if (result[i] != 4.0f)
         {
