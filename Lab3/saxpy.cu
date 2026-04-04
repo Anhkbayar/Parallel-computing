@@ -41,9 +41,21 @@ void run_saxpy(int N, float alpha, float *host_x, float *host_y, float *host_res
      * device_x, device_y, device_result-д зориулж 'size' хэмжээтэй зай авна.
      */
     // cudaMalloc(...);
+    cudaEvent_t malloc_start, malloc_end;
+    cudaEventCreate(&malloc_start);
+    cudaEventCreate(&malloc_end);
+
+    cudaEventRecord(malloc_start);
+
     cudaMalloc((void **)&device_x, size);
     cudaMalloc((void **)&device_y, size);
     cudaMalloc((void **)&device_result, size);
+
+    cudaEventRecord(malloc_end);
+    cudaEventSynchronize(malloc_end);
+
+    float malloc_ms = 0;
+    cudaEventElapsedTime(&malloc_ms, malloc_start, malloc_end);
 
     /**
      * ДААЛГАВАР 3: Өгөгдлийг CPU-ээс GPU рүү хуулах (cudaMemcpy)
@@ -60,6 +72,7 @@ void run_saxpy(int N, float alpha, float *host_x, float *host_y, float *host_res
     cudaMemcpy(device_y, host_y, size, cudaMemcpyHostToDevice);
 
     cudaEventRecord(h2d_end);
+    cudaEventSynchronize(h2d_end);
 
     float h2d_ms = 0;
     cudaEventElapsedTime(&h2d_ms, h2d_start, h2d_end);
@@ -109,6 +122,7 @@ void run_saxpy(int N, float alpha, float *host_x, float *host_y, float *host_res
     cudaMemcpy(host_result, device_result, size, cudaMemcpyDeviceToHost);
 
     cudaEventRecord(d2h_end);
+    cudaEventSynchronize(d2h_end);
     float d2h_ms = 0;
     cudaEventElapsedTime(&d2h_ms, d2h_start, d2h_end);
 
@@ -124,6 +138,8 @@ void run_saxpy(int N, float alpha, float *host_x, float *host_y, float *host_res
     printf("--- CUDA SAXPY Result ---\n");
     printf("Total time (including memory transfer): %.3f ms\n", totalMs.count());
     printf("Kernel execution time:                 %.3f ms\n", kernelMs);
+    printf("Malloc time: %.3fms\n", malloc_ms);
+    printf("Transfer time: %.3fms\n", totalTransferTime);
     printf("Bandwidth: %.3f GB/s\n", bandwidth);
 
     // Чөлөөлөх
@@ -132,6 +148,12 @@ void run_saxpy(int N, float alpha, float *host_x, float *host_y, float *host_res
     cudaFree(device_result);
     cudaEventDestroy(start);
     cudaEventDestroy(stop);
+    cudaEventDestroy(h2d_start);
+    cudaEventDestroy(h2d_end);
+    cudaEventDestroy(d2h_start);
+    cudaEventDestroy(d2h_end);
+    cudaEventDestroy(malloc_start);
+    cudaEventDestroy(malloc_end);
 }
 
 int main()
@@ -151,7 +173,10 @@ int main()
         y[i] = 2.0f;
     }
 
-    run_saxpy(N, alpha, x, y, result);
+    for (int i = 0; i < 3; i++)
+    {
+        run_saxpy(N, alpha, x, y, result);
+    }
 
     // Шалгалт (Verification)
     bool success = true;
