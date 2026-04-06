@@ -3,7 +3,6 @@
 #include <cuda_runtime.h>
 #include <cmath>
 
-// Алдаа шалгах макро
 #define CUDA_CHECK(call) \
     do { \
         cudaError_t err = call; \
@@ -25,10 +24,8 @@ int nextPowerOf2(int n) {
     return n;
 }
 
-// ---------------------------------------------------------
+
 // 1. Up-sweep Kernel
-// Зөвхөн хэрэгцээтэй thread-үүд ажиллана. if(k % d == 0) гэж шүүхгүй!
-// ---------------------------------------------------------
 __global__ void up_sweep_kernel(int* d_arr, int d, int num_threads) {
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
     
@@ -41,10 +38,7 @@ __global__ void up_sweep_kernel(int* d_arr, int d, int num_threads) {
     }
 }
 
-// ---------------------------------------------------------
 // 2. Down-sweep Kernel
-// Дээрээс доош swap хийж нэмнэ.
-// ---------------------------------------------------------
 __global__ void down_sweep_kernel(int* d_arr, int d, int num_threads) {
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
     
@@ -60,7 +54,6 @@ __global__ void down_sweep_kernel(int* d_arr, int d, int num_threads) {
 
 // ---------------------------------------------------------
 // 3. Host Function: Exclusive Scan
-// ---------------------------------------------------------
 void exclusive_scan(const std::vector<int>& h_in, std::vector<int>& h_out) {
     int n = h_in.size();
     int m = nextPowerOf2(n); // Padding хийх хэмжээ
@@ -108,9 +101,7 @@ void exclusive_scan(const std::vector<int>& h_in, std::vector<int>& h_out) {
     CUDA_CHECK(cudaFree(d_arr));
 }
 
-// ---------------------------------------------------------
-// Тестлэх хэсэг
-// ---------------------------------------------------------
+
 int main() {
     // N нь 2-ын зэрэгт биш (жишээ нь 11)
     std::vector<int> h_in = {3, 1, 7, 0, 4, 1, 6, 3, 2, 5, 8};
