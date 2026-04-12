@@ -77,18 +77,25 @@ void exclusive_scan(int *d_arr, int n)
 __global__ void mark_repeat_kernel(const int *d_in, int *d_flag, int n)
 {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
+
     if (i < n - 1)
     {
-        bool matchLeft = (i > 0 && d_in[i] == d_in[i - 1]);
-        bool matchRight = (i < n - 1 && d_in[i] == d_in[i + 1]);
-        if (matchLeft || matchRight)
+        if (d_in[i] == d_in[i + 1])
         {
+
             d_flag[i] = 1;
         }
         else
         {
+
             d_flag[i] = 0;
         }
+    }
+
+    else if (i == n - 1)
+    {
+
+        d_flag[i] = 0;
     }
 }
 
@@ -155,9 +162,9 @@ int find_repeats(const std::vector<int> &h_in, std::vector<int> &h_out)
 
 int main()
 {
-    std::vector<int> h_in = {5, 8, 3, 1, 1, 1, 1, 3, 6, 2, 2, 2, 3, 5, 7, 4};
+    std::vector<int> h_in = {1, 2, 2, 1, 1, 1, 3, 5, 3, 3};
     std::vector<int> h_out;
-    
+
     std::cout << "--- Find repeats test ---\n";
     std::cout << "Input: ";
     for (int nums : h_in)

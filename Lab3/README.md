@@ -31,3 +31,5 @@ IX хоногт өгөгдөнө.
 
 **Нэмэлт материал**
 https://docs.nvidia.com/cuda/cuda-c-programming-guide/
+
+nvcc -arch=sm_89 -o <output name> <name.cu>
