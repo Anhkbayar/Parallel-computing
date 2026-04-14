@@ -1,0 +1,17 @@
+<!-- client -->
+<script src="socket.io/socket.io.js"></script>
+
+<script>
+    var socket = io("http://localhost:6769");
+    function sendmsg() {
+        var msg = document.getElementById('txtmsg').value;
+        socket.emit('send', msg);
+    }
+    socket.on('push',function(data){
+        var div = document.getElementById('divmsg');
+        div.innerHTML += data + "<br>";
+    });
+</script>
+<textarea cols="50" rows="10" id="txtmsg"></textarea>
+<input type="button" value="send message" onclick="sendmsg()">
+<div id="divmsg"></div>
