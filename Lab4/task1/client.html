@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Client</title>
+</head>
+<body>
+    <input id="msg" placeholder="message"/>
+    <button onclick="send()">Send</button>
+
+    <ul id="messages"></ul>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const clientId = Math.floor(Math.random() * 100);
+
+        let port = (clientId % 2 === 0) ? 8001 : 8002;
+        let backup = (port === 8001) ? 8002 : 8001;
+
+        let socket = io(`http://localhost:${port}`, {
+            query: {clientId}
+        });
+
+        socket.on('connect_error', () => {
+            console.log("Primary failed, switching...");
+            socket = io(`http://localhost:${backup}`);
+        });
+
+        function send() {
+            const msg = document.getElementById('msg').value;
+            socket.emit('send', msg);
+        }
+
+        socket.on('push', (msg) => {
+            const li = document.createElement("li");
+            li.innerText = msg;
+            document.getElementById("messages").appendChild(li);
+        });
+    </script>
+</body>
+</html>
