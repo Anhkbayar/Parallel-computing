@@ -61,6 +61,7 @@ function connectToBackend(name) {
         serverStatus[name] = true;
         console.log(`[Balancer] Server ${name} connected`);
         reregisterClientsOn(name); // re-register clients still assigned here
+        failbackClientsTo(name);
     });
 
     socket.on("disconnect", () => {
@@ -208,6 +209,41 @@ io.on("connection", (socket) => {
         clients.delete(socket.id);
     });
 });
+
+function failbackClientsTo(restoredServer) {
+    if (!serverStatus[restoredServer]) return;
+
+    let count = 0;
+
+    for (const client of clients.values()) {
+        // Only move clients whose preferred server is restoredServer
+        // and who are currently using fallback server
+        if (
+            client.preferredServer === restoredServer &&
+            client.assignedServer !== restoredServer
+        ) {
+            const old = client.assignedServer;
+
+            client.assignedServer = restoredServer;
+
+            serverSockets[restoredServer].emit("register_client", {
+                clientId: client.clientId,
+            });
+
+            client.socket.emit("server_switched", {
+                from: old,
+                to: restoredServer,
+                message: `Server ${restoredServer} is back UP → switched back to preferred Server ${restoredServer}`,
+            });
+
+            count++;
+        }
+    }
+
+    if (count > 0) {
+        console.log(`[Balancer] Failed back ${count} client(s) to Server ${restoredServer}`);
+    }
+}
 
 //Active health polling
 async function pollHealth() {
